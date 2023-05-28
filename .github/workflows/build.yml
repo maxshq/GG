@@ -42,4 +42,4 @@ jobs:
       if: always()
       with:
           name: gg
-          path: ${{ github.workspace }}/app/build/release
+          path: ${{ github.workspace }}
