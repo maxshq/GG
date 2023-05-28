@@ -1,46 +1,63 @@
-const { app, BrowserWindow } = require('electron');
-const path = require('path');
-
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) { // eslint-disable-line global-require
-  app.quit();
+const { app, BrowserWindow } = require('electron')
+const path = require("path")
+const gotTheLock = app.requestSingleInstanceLock()
+require('update-electron-app')()
+let win
+function createWindow() {
+    win = new BrowserWindow({
+        width: 1420, height: 800, icon: path.resolve(__dirname, "./gkstudycourse.jpg"),
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            enableRemoteModule: true,
+            webSecurity: true,
+            nodeIntegrationInSubFrames: true,
+            nodeIntegrationInWorker: true,
+            preload: path.resolve(__dirname, "preload.js"),
+            partition: String(+new Date()),
+        }
+    })
+    win.loadURL("https://menhu.pt.ouchn.cn/site/ouchnPc/index",
+        {
+            userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+        }
+    )
+    // win.webContents.closeDevTools()
+    win.webContents.openDevTools()
+    win.once('ready-to-show', () => {
+        win.show();
+    })
 }
+if (!gotTheLock) {
+    app.quit()
+} else {
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+        // 用户正在尝试运行第二个实例，我们需要让焦点指向我们的窗口
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore()
+            mainWindow.focus()
+        }
+    })
+    app.on("web-contents-created", (event, w) => {
+        w.setWindowOpenHandler((details) => {
+            win.loadURL(details.url, { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36" })
+            return { "action": "deny" }
+        })
+    })
 
-const createWindow = () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-  });
+    app.whenReady().then(() => {
+        createWindow()
+        // win.webContents.on('did-finish-load', () => {
+        //     win.webContents.send("load", { "win": win.webContents });
 
-  // and load the index.html of the app.
-  mainWindow.loadFile(path.join(__dirname, 'index.html'));
-
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
-};
-
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
-
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
+        // })
+        app.on('activate', function () {
+            if (win || BrowserWindow.getAllWindows().length === 0) createWindow()
+        })
+    })
+    app.on('window-all-closed', () => {
+        if (process.platform !== 'darwin') {
+            app.quit()
+        }
+    })
+}
